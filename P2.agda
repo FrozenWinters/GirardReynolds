@@ -143,3 +143,72 @@ subsTyInProp {Γ̂ = Γ̂} {Γ} (∀X 𝐴) v A =
   ∀X (tr (λ Γ̂ → Proposition Γ̂ (shiftCtx 𝑧𝑝 (subsCtx Γ v A))) (shiftSubsCtx v 𝑧𝑝 Γ̂ A)
     (tr (λ Γ → Proposition (subsCtx (shiftCtx 𝑧𝑝 Γ̂) (𝑠𝑣 v) A) Γ) (shiftSubsCtx v 𝑧𝑝 Γ A)
       (subsTyInProp 𝐴 (𝑠𝑣 v) A)))
+
+-- Round IV
+
+PropCtx : {γ : TyCtx} → PredCtx γ → Ctx γ → Type₀
+PropCtx Γ̂ Γ = 𝐶𝑡𝑥 (Proposition Γ̂ Γ)
+
+PropVar : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} → PropCtx Γ̂ Γ → Proposition Γ̂ Γ → Type₀
+PropVar {Γ̂ = Γ̂} {Γ}  = 𝑉𝑎𝑟 {ty = Proposition Γ̂ Γ}
+
+PropPos : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} → PropCtx Γ̂ Γ → Type₀
+PropPos {Γ̂ = Γ̂} {Γ} = 𝑃𝑜𝑠 {ty = Proposition Γ̂ Γ}
+
+shiftPropCtx-Γ̂ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {Â : Ty γ}
+  (𝑖 : PredPos Γ̂) → PropCtx Γ̂ Γ → PropCtx (insert𝐶𝑡𝑥 𝑖 Â) Γ
+shiftPropCtx-Γ̂ 𝑖 = map𝐶𝑡𝑥 (shiftProp-Γ̂ 𝑖)
+
+shiftPropCtx-Γ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {A : Ty γ}
+  (𝑖 : PredPos Γ) → PropCtx Γ̂ Γ → PropCtx Γ̂ (insert𝐶𝑡𝑥 𝑖 A)
+shiftPropCtx-Γ 𝑖 = map𝐶𝑡𝑥 (shiftProp-Γ 𝑖)
+
+shiftPropCtx-n : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {⋆ : ⊤}
+  (𝑖 : TyPos γ) → PropCtx Γ̂ Γ → PropCtx (shiftCtx {⋆ = ⋆} 𝑖 Γ̂) (shiftCtx 𝑖 Γ)
+shiftPropCtx-n 𝑖 = map𝐶𝑡𝑥 (shiftProp-n 𝑖)
+
+subsShiftCtx : {γ : TyCtx} {⋆ : ⊤} (v : TyVar γ ⋆) (Γ : Ctx (remove𝑉𝑎𝑟 v)) (A : Ty (prefix𝑉𝑎𝑟 v)) →
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ≡ Γ
+subsShiftCtx v ∅ A = ap (λ x → subsCtx x v A) (tr∅ (insert-removal v))
+subsShiftCtx v (Γ ⊹ B) A =
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) (Γ ⊹ B))) v A
+    ≡⟨ ap (λ x → subsCtx x v A) (tr⊹ (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)
+      (shiftTy (removal𝑃𝑜𝑠 v) B)) ⟩
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A
+    ⊹ subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) B)) v A
+    ≡⟨ ap (subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ⊹_)
+      (subsShiftTy v B A) ⟩
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ⊹ B
+    ≡⟨ ap (_⊹ B) (subsShiftCtx v Γ A) ⟩
+  Γ ⊹ B
+    ∎
+
+data Deduction : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} →
+                 PropCtx Γ̂ Γ → Proposition Γ̂ Γ → Type₀ where
+  𝐷𝑉 : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {𝐴 : Proposition Γ̂ Γ} →
+    PropVar α 𝐴 → Deduction α 𝐴
+  →ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {𝐴 𝐵 : Proposition Γ̂ Γ} →
+    Deduction (α ⊹ 𝐴) 𝐵 → Deduction α (𝐴 ⇛ 𝐵)
+  →ₑ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {𝐴 𝐵 : Proposition Γ̂ Γ} →
+    Deduction α (𝐴 ⇛ 𝐵) → Deduction α 𝐴 → Deduction α 𝐵
+  ∀⁰ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ}{Â : Ty γ}
+    {𝐴 : Proposition Γ̂ Γ} →
+    Deduction (shiftPropCtx-Γ̂ {Â = Â} 𝑧𝑝 α) (shiftProp-Γ̂ 𝑧𝑝 𝐴) → Deduction α 𝐴
+  ∀¹ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {A : Ty γ}
+    {𝐴 : Proposition Γ̂ Γ} →
+    Deduction (shiftPropCtx-Γ {A = A} 𝑧𝑝 α) (shiftProp-Γ 𝑧𝑝 𝐴) → Deduction α 𝐴
+  ∀²ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {⋆ : ⊤} {𝐴 : Proposition Γ̂ Γ} →
+    Deduction (shiftPropCtx-n {⋆ = ⋆} 𝑧𝑝 α) (shiftProp-n 𝑧𝑝 𝐴) → Deduction α 𝐴
+  ∀⁰ₑ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {Â : Ty γ}
+    {𝐴 : Proposition (Γ̂ ⊹ Â) Γ} →
+    Deduction α (∀𝒳 𝐴) → (𝒜 : Predicate Γ̂ Γ Â) → Deduction α (subsPredInProp 𝐴 𝑧𝑣 𝒜)
+  ∀¹ₑ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {A : Ty γ}
+    {𝐴 : Proposition Γ̂ (Γ ⊹ A)} →
+    Deduction α (∀x 𝐴) → (t : Tm Γ A) → Deduction α (subsTmInProp 𝐴 𝑧𝑣 t)
+  ∀²ₑ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {⋆ : ⊤}
+    {𝐴 : Proposition (shiftCtx {⋆ = ⋆} 𝑧𝑝 Γ̂) (shiftCtx 𝑧𝑝 Γ)} →
+    Deduction α (∀X 𝐴) → (A : Ty γ) →
+    Deduction α
+      (tr (λ Γ̂ → Proposition Γ̂ Γ) (subsShiftCtx 𝑧𝑣 Γ̂ A)
+        (tr (λ Γ → Proposition (subsCtx (shiftCtx 𝑧𝑝 Γ̂) 𝑧𝑣 A) Γ) (subsShiftCtx 𝑧𝑣 Γ A)
+          (subsTyInProp 𝐴 𝑧𝑣 A)))
