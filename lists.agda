@@ -25,13 +25,6 @@ map𝐶𝑡𝑥 : {ty₁ : Type ℓ₁} {ty₂ : Type ℓ₂} (f : ty₁ → ty�
 map𝐶𝑡𝑥 f ∅ = ∅
 map𝐶𝑡𝑥 f (Γ ⊹ A) = map𝐶𝑡𝑥 f Γ ⊹ f A
 
-{-tr∅ : {ty₁ ty₂ : Type ℓ} (p : ty₁ ≡ ty₂) → tr 𝐶𝑡𝑥 p ∅ ≡ ∅
-tr∅ refl = refl
-
-tr⊹ : {ty₁ ty₂ : Type ℓ} (p : ty₁ ≡ ty₂) (Γ : 𝐶𝑡𝑥 ty₁) (A : ty₁) →
-  tr 𝐶𝑡𝑥 p (Γ ⊹ A) ≡ tr 𝐶𝑡𝑥 p Γ ⊹ tr (λ x → x) p A
-tr⊹ refl Γ A = refl-}
-
 data 𝑉𝑎𝑟 {ty : Type ℓ} : (Γ : 𝐶𝑡𝑥 ty) (A : ty) → Type ℓ where
   𝑧𝑣 : {Γ : 𝐶𝑡𝑥 ty} {A : ty} → 𝑉𝑎𝑟 (Γ ⊹ A) A
   𝑠𝑣 : {Γ : 𝐶𝑡𝑥 ty} {A B : ty} → 𝑉𝑎𝑟 Γ A → 𝑉𝑎𝑟 (Γ ⊹ B) A
@@ -61,29 +54,6 @@ module _ {ty : Type ℓ} where
   _+_ : {Γ : 𝐶𝑡𝑥 ty} (𝑖 : 𝑃𝑜𝑠 Γ) → 𝑃𝑜𝑠 (prefix𝑃𝑜𝑠 𝑖) → 𝑃𝑜𝑠 Γ
   𝑧𝑝 + 𝑗 = 𝑗
   𝑠𝑝 𝑖 + 𝑗 = 𝑠𝑝 (𝑖 + 𝑗)
-
-  {-subsequent𝑃𝑜𝑠 : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) → 𝑃𝑜𝑠 Γ
-  subsequent𝑃𝑜𝑠 𝑧𝑣 = 𝑠𝑝 𝑧𝑝
-  subsequent𝑃𝑜𝑠 (𝑠𝑣 v) = 𝑠𝑝 (subsequent𝑃𝑜𝑠 v)
-
-  removal𝑃𝑜𝑠 : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) → 𝑃𝑜𝑠 (remove𝑉𝑎𝑟 v)
-  removal𝑃𝑜𝑠 𝑧𝑣 = 𝑧𝑝
-  removal𝑃𝑜𝑠 (𝑠𝑣 v) = 𝑠𝑝 (removal𝑃𝑜𝑠 v)
-
-  prefixRemoval𝑃𝑜𝑠 : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) →
-    prefix𝑃𝑜𝑠 (removal𝑃𝑜𝑠 v) ≡ prefix𝑉𝑎𝑟 v
-  prefixRemoval𝑃𝑜𝑠 𝑧𝑣 = refl
-  prefixRemoval𝑃𝑜𝑠 (𝑠𝑣 v) = prefixRemoval𝑃𝑜𝑠 v
-
-  tr-prefixRemoval : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) →
-    𝑃𝑜𝑠 (prefix𝑉𝑎𝑟 v) → 𝑃𝑜𝑠 (prefix𝑃𝑜𝑠 (removal𝑃𝑜𝑠 v))
-  tr-prefixRemoval 𝑧𝑣 𝑖 = 𝑖
-  tr-prefixRemoval (𝑠𝑣 v) 𝑖 = tr-prefixRemoval v 𝑖
-
-  tr-prefixSubsequent : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) →
-    𝑃𝑜𝑠 (prefix𝑉𝑎𝑟 v) → 𝑃𝑜𝑠 (prefix𝑃𝑜𝑠 (subsequent𝑃𝑜𝑠 v))
-  tr-prefixSubsequent 𝑧𝑣 𝑖 = 𝑖
-  tr-prefixSubsequent (𝑠𝑣 v) 𝑖 = tr-prefixSubsequent v 𝑖-}
 
   insert𝐶𝑡𝑥 : {Γ : 𝐶𝑡𝑥 ty} → 𝑃𝑜𝑠 Γ → ty → 𝐶𝑡𝑥 ty
   insert𝐶𝑡𝑥 {Γ = Γ} 𝑧𝑝 A = Γ ⊹ A
@@ -136,11 +106,52 @@ module _ {ty : Type ℓ} where
   removed𝑃𝑜𝑠 𝑧𝑣 (𝑠𝑝 𝑖) = 𝑖
   removed𝑃𝑜𝑠 (𝑠𝑣 v) (𝑠𝑝 𝑖) = 𝑠𝑝 (removed𝑃𝑜𝑠 v 𝑖)
 
+  removal𝑃𝑜𝑠 : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) → 𝑃𝑜𝑠 (remove𝑉𝑎𝑟 v)
+  removal𝑃𝑜𝑠 𝑧𝑣 = 𝑧𝑝
+  removal𝑃𝑜𝑠 (𝑠𝑣 v) = 𝑠𝑝 (removal𝑃𝑜𝑠 v)
+
   insert-remove : {Γ : 𝐶𝑡𝑥 ty} {A B : ty} (v : 𝑉𝑎𝑟 Γ B) (𝑖 : 𝑃𝑜𝑠 Γ) →
     remove𝑉𝑎𝑟 (shift𝑉𝑎𝑟 𝑖 v {A}) ≡ insert𝐶𝑡𝑥 (removed𝑃𝑜𝑠 v 𝑖) A
   insert-remove v 𝑧𝑝 = refl
   insert-remove 𝑧𝑣 (𝑠𝑝 𝑖) = refl
   insert-remove {Γ ⊹ A} (𝑠𝑣 v) (𝑠𝑝 𝑖) = ap (_⊹ A) (insert-remove v 𝑖)
+
+  insert-removal : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) →
+    insert𝐶𝑡𝑥 (removal𝑃𝑜𝑠 v) A ≡ Γ
+  insert-removal 𝑧𝑣 = refl
+  insert-removal {Γ ⊹ A} (𝑠𝑣 v) = ap (_⊹ A) (insert-removal v)
+
+  reinsert𝑉𝑎𝑟 : {Γ : 𝐶𝑡𝑥 ty} {A B : ty} (v : 𝑉𝑎𝑟 Γ A) → 𝑉𝑎𝑟 (remove𝑉𝑎𝑟 v) B → 𝑉𝑎𝑟 Γ B
+  reinsert𝑉𝑎𝑟 𝑧𝑣 w = 𝑠𝑣 w
+  reinsert𝑉𝑎𝑟 (𝑠𝑣 v) 𝑧𝑣 = 𝑧𝑣
+  reinsert𝑉𝑎𝑟 (𝑠𝑣 v) (𝑠𝑣 w) = 𝑠𝑣 (reinsert𝑉𝑎𝑟 v w)
+
+  {-swapRemove𝐶𝑡𝑥 : {Γ : 𝐶𝑡𝑥 ty} {A B : ty} (v : 𝑉𝑎𝑟 Γ A) → 𝑉𝑎𝑟 (remove𝑉𝑎𝑟 v) B → 𝐶𝑡𝑥 ty
+  swapRemove𝐶𝑡𝑥 v w = remove𝑉𝑎𝑟 (reinsert𝑉𝑎𝑟 v w)-}
+  {-swapRemove𝐶𝑡𝑥 {Γ ⊹ A} 𝑧𝑣 w = remove𝑉𝑎𝑟 w ⊹ A
+  swapRemove𝐶𝑡𝑥 {Γ ⊹ A} (𝑠𝑣 v) 𝑧𝑣 = Γ
+  swapRemove𝐶𝑡𝑥 {Γ ⊹ A} (𝑠𝑣 v) (𝑠𝑣 w) = swapRemove𝐶𝑡𝑥 v w ⊹ A-}
+
+  swapRemove𝑉𝑎𝑟 : {Γ : 𝐶𝑡𝑥 ty} {A B : ty} (v : 𝑉𝑎𝑟 Γ A) (w : 𝑉𝑎𝑟 (remove𝑉𝑎𝑟 v) B) →
+    𝑉𝑎𝑟 (remove𝑉𝑎𝑟 (reinsert𝑉𝑎𝑟 v w)) A
+  swapRemove𝑉𝑎𝑟 𝑧𝑣 w = 𝑧𝑣
+  swapRemove𝑉𝑎𝑟 (𝑠𝑣 v) 𝑧𝑣 = v
+  swapRemove𝑉𝑎𝑟 (𝑠𝑣 v) (𝑠𝑣 w) = 𝑠𝑣 (swapRemove𝑉𝑎𝑟 v w)
+
+  remove-swap : {Γ : 𝐶𝑡𝑥 ty} {A B : ty} (v : 𝑉𝑎𝑟 Γ A) (w : 𝑉𝑎𝑟 (remove𝑉𝑎𝑟 v) B) →
+    remove𝑉𝑎𝑟 (swapRemove𝑉𝑎𝑟 v w) ≡ remove𝑉𝑎𝑟 w
+  remove-swap 𝑧𝑣 w = refl
+  remove-swap (𝑠𝑣 v) 𝑧𝑣 = refl
+  remove-swap {Γ = Γ ⊹ A} (𝑠𝑣 v) (𝑠𝑣 w) = ap (_⊹ A) (remove-swap v w)
+
+subs𝑉𝑎𝑟 : {ty : Type ℓ₁} {tm : 𝐶𝑡𝑥 ty → ty → Type ℓ₂} {Γ : 𝐶𝑡𝑥 ty} {A B : ty}
+  (V : {Γ : 𝐶𝑡𝑥 ty} {A : ty} → 𝑉𝑎𝑟 Γ A → tm Γ A)
+  (shift : {Γ : 𝐶𝑡𝑥 ty} {A B : ty} (𝑖 : 𝑃𝑜𝑠 Γ) → tm Γ B → tm (insert𝐶𝑡𝑥 𝑖 A) B) →
+  𝑉𝑎𝑟 Γ B → (v : 𝑉𝑎𝑟 Γ A) → tm (prefix𝑉𝑎𝑟 v) A → tm (remove𝑉𝑎𝑟 v) B
+subs𝑉𝑎𝑟 V shift 𝑧𝑣 𝑧𝑣 t = t
+subs𝑉𝑎𝑟 V shift 𝑧𝑣 (𝑠𝑣 v) t = V 𝑧𝑣
+subs𝑉𝑎𝑟 V shift (𝑠𝑣 w) 𝑧𝑣 t = V w
+subs𝑉𝑎𝑟 V shift (𝑠𝑣 w) (𝑠𝑣 v) t = shift 𝑧𝑝 (subs𝑉𝑎𝑟 V shift w v t)
 
 tr𝑃𝑜𝑠 : {ty₁ : Type ℓ₁} {ty₂ : Type ℓ₂} (f : ty₁ → ty₂) {Γ : 𝐶𝑡𝑥 ty₁}
   → 𝑃𝑜𝑠 Γ → 𝑃𝑜𝑠 (map𝐶𝑡𝑥 f Γ)

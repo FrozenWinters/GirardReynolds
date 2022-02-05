@@ -102,14 +102,44 @@ subsPredInProp (t ∈ ℬ) v 𝒜 = t ∈ (subsPredInPred ℬ v 𝒜)
 subsPredInProp (𝐴 ⇛ 𝐵) v 𝒜 = subsPredInProp 𝐴 v 𝒜 ⇛ subsPredInProp 𝐵 v 𝒜
 subsPredInProp (∀𝒳 𝐴) v 𝒜 = ∀𝒳 (subsPredInProp 𝐴 (𝑠𝑣 v) 𝒜)
 subsPredInProp (∀x 𝐴) v 𝒜 = ∀x (subsPredInProp 𝐴 v (shiftPred-Γ 𝑧𝑝 𝒜))
-subsPredInProp (∀X 𝐴) v 𝒜 =
-  ∀X {!subsPredInProp 𝐴 (shiftVar-γ 𝑧𝑝 v) {!(shiftPred-n 𝑧𝑝 𝒜)!}!}
+subsPredInProp {Γ = Γ} {Â} (∀X 𝐴) v 𝒜 =
+  ∀X (tr (λ Γ̂ → Proposition Γ̂ (shiftCtx 𝑧𝑝 Γ)) (shiftRemove 𝑧𝑝 v ⁻¹)
+    (subsPredInProp 𝐴 (shiftVar-γ 𝑧𝑝 v)
+      (tr (λ Γ̂ → Predicate Γ̂ (shiftCtx 𝑧𝑝 Γ) (shiftTy 𝑧𝑝 Â)) (shiftPrefix 𝑧𝑝 v)
+        (shiftPred-n 𝑧𝑝 𝒜))))
 
---PropCtx : {n : TyCtx} (Γ̂ : PredCtx n) (Γ : Ctx n)
+subsTmInProp : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {A : Ty γ} →
+  Proposition Γ̂ Γ → (v : Var Γ A) → Tm (prefix𝑉𝑎𝑟 v) A  → Proposition Γ̂ (remove𝑉𝑎𝑟 v)
 
---data Derivation
+subsTmInPred : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {A B : Ty γ} →
+  Predicate Γ̂ Γ B → (v : Var Γ A) → Tm (prefix𝑉𝑎𝑟 v) A → Predicate Γ̂ (remove𝑉𝑎𝑟 v) B
+subsTmInPred (𝑃𝑉 w) v t = 𝑃𝑉 w
+subsTmInPred (𝑃𝐿 𝐴) v t = 𝑃𝐿 (subsTmInProp 𝐴 (𝑠𝑣 v) t)
 
-{-idTy : Ty 0
-idTy = ∀⋆ (𝑉 𝑍 ⇒ 𝑉 𝑍)
+subsTmInProp (s ∈ 𝒜) v t = subsTm s v t ∈ subsTmInPred 𝒜 v t
+subsTmInProp (𝐴 ⇛ 𝐵) v t = subsTmInProp 𝐴 v t ⇛ subsTmInProp 𝐵 v t
+subsTmInProp (∀𝒳 𝐴) v t = ∀𝒳 (subsTmInProp 𝐴 v t)
+subsTmInProp (∀x 𝐴) v t = ∀x (subsTmInProp 𝐴 (𝑠𝑣 v) t)
+subsTmInProp {Γ̂ = Γ̂} {Γ} {A} (∀X 𝐴) v t =
+  ∀X (tr (λ Γ → Proposition (shiftCtx 𝑧𝑝 Γ̂) Γ) (shiftRemove 𝑧𝑝 v ⁻¹)
+    (subsTmInProp 𝐴 (shiftVar-γ 𝑧𝑝 v)
+      (tr (λ Γ → Tm Γ (shiftTy 𝑧𝑝 A)) (shiftPrefix 𝑧𝑝 v) (shiftTm-γ 𝑧𝑝 t))))
 
-_≡𝑇𝑚_ : {n : TyCtx} {Γ̂ : PredCtx n} {Γ : Ctx n}-}
+subsTyInProp : {γ : TyCtx} {⋆ : ⊤} {Γ̂ : PredCtx γ} {Γ : Ctx γ} →
+  Proposition Γ̂ Γ → (v : TyVar γ ⋆) → (A : Ty (prefix𝑉𝑎𝑟 v)) →
+  Proposition (subsCtx Γ̂ v A) (subsCtx Γ v A)
+
+subsTyInPred : {γ : TyCtx} {⋆ : ⊤} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {B : Ty γ} →
+  Predicate Γ̂ Γ B → (v : TyVar γ ⋆) → (A : Ty (prefix𝑉𝑎𝑟 v)) →
+  Predicate (subsCtx Γ̂ v A) (subsCtx Γ v A) (subsTy B v A)
+subsTyInPred (𝑃𝑉 w) v A = 𝑃𝑉 (subsVar-γ w v A)
+subsTyInPred (𝑃𝐿 𝐴) v A = 𝑃𝐿 (subsTyInProp 𝐴 v A )
+
+subsTyInProp (t ∈ 𝒜) v A = subsTm-γ t v A ∈ subsTyInPred 𝒜 v A
+subsTyInProp (𝐴 ⇛ 𝐵) v A = subsTyInProp 𝐴 v A ⇛ subsTyInProp 𝐵 v A
+subsTyInProp (∀𝒳 𝐴) v A = ∀𝒳 (subsTyInProp 𝐴 v A)
+subsTyInProp (∀x 𝐴) v A = ∀x (subsTyInProp 𝐴 v A)
+subsTyInProp {Γ̂ = Γ̂} {Γ} (∀X 𝐴) v A =
+  ∀X (tr (λ Γ̂ → Proposition Γ̂ (shiftCtx 𝑧𝑝 (subsCtx Γ v A))) (shiftSubsCtx v 𝑧𝑝 Γ̂ A)
+    (tr (λ Γ → Proposition (subsCtx (shiftCtx 𝑧𝑝 Γ̂) (𝑠𝑣 v) A) Γ) (shiftSubsCtx v 𝑧𝑝 Γ A)
+      (subsTyInProp 𝐴 (𝑠𝑣 v) A)))

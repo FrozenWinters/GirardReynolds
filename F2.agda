@@ -24,17 +24,14 @@ shiftTy 𝑖 (𝑉 v) = 𝑉 (shift𝑉𝑎𝑟 𝑖 v)
 shiftTy 𝑖 (A ⇒ B) = shiftTy 𝑖 A ⇒ shiftTy 𝑖 B
 shiftTy 𝑖 (∀⋆ A) = ∀⋆ (shiftTy (𝑠𝑝 𝑖) A)
 
-subsTyVar : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤}
-  (v : TyVar γ ⋆₁) → TyVar γ ⋆₂ → Ty (prefix𝑉𝑎𝑟 v) → Ty (remove𝑉𝑎𝑟 v)
-subsTyVar 𝑧𝑣 𝑧𝑣 A = A
-subsTyVar (𝑠𝑣 v) 𝑧𝑣 A = 𝑉 𝑧𝑣
-subsTyVar 𝑧𝑣 (𝑠𝑣 w) A = 𝑉 w
-subsTyVar (𝑠𝑣 v) (𝑠𝑣 w) A = shiftTy 𝑧𝑝 (subsTyVar v w A)
+subsTyVar : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤} →
+  TyVar γ ⋆₁ → (v : TyVar γ ⋆₂) → Ty (prefix𝑉𝑎𝑟 v) → Ty (remove𝑉𝑎𝑟 v)
+subsTyVar = subs𝑉𝑎𝑟 𝑉 shiftTy
 
-subsTy : {γ : TyCtx} {⋆ : ⊤} (v : TyVar γ ⋆) → Ty γ → Ty (prefix𝑉𝑎𝑟 v) → Ty (remove𝑉𝑎𝑟 v)
-subsTy v (𝑉 w) A = subsTyVar v w A
-subsTy v (B ⇒ C) A = subsTy v B A ⇒ subsTy v C A
-subsTy v (∀⋆ B) A = ∀⋆ (subsTy (𝑠𝑣 v) B A)
+subsTy : {γ : TyCtx} {⋆ : ⊤} → Ty γ → (v : TyVar γ ⋆) → Ty (prefix𝑉𝑎𝑟 v) → Ty (remove𝑉𝑎𝑟 v)
+subsTy (𝑉 w) v A = subsTyVar w v A
+subsTy (B ⇒ C) v A = subsTy B v A ⇒ subsTy C v A
+subsTy (∀⋆ B) v A = ∀⋆ (subsTy B (𝑠𝑣 v) A)
 
 -- Round II
 
@@ -49,6 +46,9 @@ CtxPos {γ} = 𝑃𝑜𝑠 {ty = Ty γ}
 
 shiftCtx : {γ : TyCtx} {⋆ : ⊤} (𝑖 : TyPos γ) (Γ : Ctx γ) → Ctx (insert𝐶𝑡𝑥 𝑖 ⋆)
 shiftCtx 𝑖 = map𝐶𝑡𝑥 (shiftTy 𝑖)
+
+subsCtx : {γ : TyCtx} {⋆ : ⊤} → Ctx γ → (v : TyVar γ ⋆) → Ty (prefix𝑉𝑎𝑟 v) → Ctx (remove𝑉𝑎𝑟 v)
+subsCtx Γ 𝑖 A = map𝐶𝑡𝑥 (λ B → subsTy B 𝑖 A) Γ 
 
 tr𝑉 : {γ δ : TyCtx} {⋆ : ⊤} (p : γ ≡ δ) (v : TyVar γ ⋆) →
   tr Ty p (𝑉 v) ≡ 𝑉 (tr (λ γ → TyVar γ ⋆) p v)
@@ -134,55 +134,196 @@ tr𝑉𝑧𝑣 : {γ δ : TyCtx} {⋆ : ⊤} (p : γ ≡ δ) →
   tr Ty (ap (_⊹ ⋆) p) (𝑉 𝑧𝑣) ≡ 𝑉 𝑧𝑣
 tr𝑉𝑧𝑣 refl = refl
 
+tr𝑉𝑠𝑣 : {γ δ : TyCtx} {⋆₁ ⋆₂ : ⊤} (p : γ ≡ δ) (v : TyVar γ ⋆₁) →
+  tr Ty (ap (_⊹ ⋆₂) p) (𝑉 (𝑠𝑣 v)) ≡ 𝑉 (𝑠𝑣 (tr (λ γ → TyVar γ ⋆₁) p v))
+tr𝑉𝑠𝑣 refl v = refl
+
 shiftSubsTyVar : {γ : TyCtx} {⋆₁ ⋆₂ ⋆₃ : ⊤} (v : TyVar γ ⋆₁) (𝑖 : TyPos γ) (w : TyVar γ ⋆₃)
   (B : Ty (prefix𝑉𝑎𝑟 v)) →
-  tr (λ δ → Ty δ) (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 (𝑉 w)) (shiftPrefixTy v 𝑖 B))
-    ≡ shiftTy {⋆ = ⋆₂} (removed𝑃𝑜𝑠 v 𝑖) (subsTy v (𝑉 w) B)
+  tr (λ δ → Ty δ) (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 (𝑉 w)) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+    ≡ shiftTy {⋆ = ⋆₂} (removed𝑃𝑜𝑠 v 𝑖) (subsTy (𝑉 w) v B)
 shiftSubsTyVar v 𝑧𝑝 w B = refl
 shiftSubsTyVar 𝑧𝑣 (𝑠𝑝 𝑖) 𝑧𝑣 B = refl
 shiftSubsTyVar (𝑠𝑣 v) (𝑠𝑝 𝑖) 𝑧𝑣 B = tr𝑉𝑧𝑣 (insert-remove v 𝑖)
 shiftSubsTyVar 𝑧𝑣 (𝑠𝑝 𝑖) (𝑠𝑣 w) B = refl
 shiftSubsTyVar {γ = γ ⊹ ⋆} (𝑠𝑣 v) (𝑠𝑝 𝑖) (𝑠𝑣 w) B =
   tr Ty (ap (_⊹ ⋆) (insert-remove v 𝑖))
-    (shiftTy 𝑧𝑝 (subsTyVar (shift𝑉𝑎𝑟 𝑖 v) (shift𝑉𝑎𝑟 𝑖 w) (shiftPrefixTy v 𝑖 B)))
+    (shiftTy 𝑧𝑝 (subsTyVar (shift𝑉𝑎𝑟 𝑖 w) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B)))
     ≡⟨ trShiftTy (insert-remove v 𝑖)
-      (subsTyVar (shift𝑉𝑎𝑟 𝑖 v) (shift𝑉𝑎𝑟 𝑖 w) (shiftPrefixTy v 𝑖 B)) ⟩
+      (subsTyVar (shift𝑉𝑎𝑟 𝑖 w) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B)) ⟩
   shiftTy 𝑧𝑝
-    (tr Ty (insert-remove v 𝑖) (subsTyVar (shift𝑉𝑎𝑟 𝑖 v) (shift𝑉𝑎𝑟 𝑖 w) (shiftPrefixTy v 𝑖 B)))
+    (tr Ty (insert-remove v 𝑖) (subsTyVar (shift𝑉𝑎𝑟 𝑖 w) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B)))
     ≡⟨ ap (shiftTy 𝑧𝑝) (shiftSubsTyVar v 𝑖 w B) ⟩
-  shiftTy 𝑧𝑝 (shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTyVar v w B))
-    ≡⟨ (shiftTy² 𝑧𝑝 (removed𝑃𝑜𝑠 v 𝑖) (subsTyVar v w B) ⁻¹) ⟩
-  shiftTy (𝑠𝑝 (removed𝑃𝑜𝑠 v 𝑖)) (shiftTy 𝑧𝑝 (subsTyVar v w B))
+  shiftTy 𝑧𝑝 (shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTyVar w v B))
+    ≡⟨ (shiftTy² 𝑧𝑝 (removed𝑃𝑜𝑠 v 𝑖) (subsTyVar w v B) ⁻¹) ⟩
+  shiftTy (𝑠𝑝 (removed𝑃𝑜𝑠 v 𝑖)) (shiftTy 𝑧𝑝 (subsTyVar w v B))
     ∎
 
 shiftSubsTy : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤} (v : TyVar γ ⋆₁) (𝑖 : TyPos γ) (A : Ty γ)
   (B : Ty (prefix𝑉𝑎𝑟 v)) →
-  tr (λ δ → Ty δ) (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 A) (shiftPrefixTy v 𝑖 B))
-    ≡ shiftTy {⋆ = ⋆₂} (removed𝑃𝑜𝑠 v 𝑖) (subsTy v A B)
+  tr (λ δ → Ty δ) (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 A) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+    ≡ shiftTy {⋆ = ⋆₂} (removed𝑃𝑜𝑠 v 𝑖) (subsTy A v B)
 shiftSubsTy v 𝑖 (𝑉 w) A = shiftSubsTyVar v 𝑖 w A
 shiftSubsTy v 𝑖 (B ⇒ C) A =
-  tr Ty (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 B) (shiftPrefixTy v 𝑖 A)
-    ⇒ subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 C) (shiftPrefixTy v 𝑖 A))
-    ≡⟨ tr⇒ (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 B) (shiftPrefixTy v 𝑖 A))
-      (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 C) (shiftPrefixTy v 𝑖 A)) ⟩
-  tr Ty (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 B) (shiftPrefixTy v 𝑖 A))
-    ⇒ tr Ty (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 C) (shiftPrefixTy v 𝑖 A))
-    ≡⟨ ap (tr Ty (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 B) (shiftPrefixTy v 𝑖 A)) ⇒_)
+  tr Ty (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 B) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A)
+    ⇒ subsTy (shiftTy 𝑖 C) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A))
+    ≡⟨ tr⇒ (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 B) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A))
+      (subsTy (shiftTy 𝑖 C) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A)) ⟩
+  tr Ty (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 B) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A))
+    ⇒ tr Ty (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 C) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A))
+    ≡⟨ ap (tr Ty (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 B) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A)) ⇒_)
       (shiftSubsTy v 𝑖 C A) ⟩
-  tr Ty (insert-remove v 𝑖) (subsTy (shift𝑉𝑎𝑟 𝑖 v) (shiftTy 𝑖 B) (shiftPrefixTy v 𝑖 A))
-    ⇒ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy v C A)
-    ≡⟨ ap (_⇒ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy v C A)) (shiftSubsTy v 𝑖 B A) ⟩
-  shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy v B A) ⇒ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy v C A)
+  tr Ty (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 B) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 A))
+    ⇒ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy C v A)
+    ≡⟨ ap (_⇒ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy C v A)) (shiftSubsTy v 𝑖 B A) ⟩
+  shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy B v A) ⇒ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy C v A)
     ∎
 shiftSubsTy v 𝑖 (∀⋆ {⋆ = ⋆} B) A =
   tr Ty (insert-remove v 𝑖)
-    (∀⋆ (subsTy (𝑠𝑣 (shift𝑉𝑎𝑟 𝑖 v)) (shiftTy (𝑠𝑝 𝑖) B) (shiftPrefixTy v 𝑖 A)))
+    (∀⋆ (subsTy (shiftTy (𝑠𝑝 𝑖) B) (𝑠𝑣 (shift𝑉𝑎𝑟 𝑖 v)) (shiftPrefixTy v 𝑖 A)))
     ≡⟨ tr∀⋆ (insert-remove v 𝑖)
-      (subsTy (𝑠𝑣 (shift𝑉𝑎𝑟 𝑖 v)) (shiftTy (𝑠𝑝 𝑖) B) (shiftPrefixTy v 𝑖 A)) ⟩
+      (subsTy (shiftTy (𝑠𝑝 𝑖) B) (𝑠𝑣 (shift𝑉𝑎𝑟 𝑖 v)) (shiftPrefixTy v 𝑖 A)) ⟩
   ∀⋆ (tr Ty (insert-remove (𝑠𝑣 v) (𝑠𝑝 𝑖))
-       (subsTy (shift𝑉𝑎𝑟 (𝑠𝑝 𝑖) (𝑠𝑣 v)) (shiftTy (𝑠𝑝 𝑖) B) (shiftPrefixTy (𝑠𝑣 {B = ⋆} v) (𝑠𝑝 𝑖) A)))
+       (subsTy (shiftTy (𝑠𝑝 𝑖) B) (shift𝑉𝑎𝑟 (𝑠𝑝 𝑖) (𝑠𝑣 v)) (shiftPrefixTy (𝑠𝑣 {B = ⋆} v) (𝑠𝑝 𝑖) A)))
     ≡⟨ ap ∀⋆ (shiftSubsTy (𝑠𝑣 v) (𝑠𝑝 𝑖) B A) ⟩
-  ∀⋆ (shiftTy (𝑠𝑝 (removed𝑃𝑜𝑠 v 𝑖)) (subsTy (𝑠𝑣 v) B A))
+  ∀⋆ (shiftTy (𝑠𝑝 (removed𝑃𝑜𝑠 v 𝑖)) (subsTy B (𝑠𝑣 v) A))
+    ∎
+
+shiftSubsCtx : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤} (v : TyVar γ ⋆₁) (𝑖 : TyPos γ) (Γ : Ctx γ)
+  (B : Ty (prefix𝑉𝑎𝑟 v)) →
+  tr (λ δ → Ctx δ) (insert-remove v 𝑖) (subsCtx (shiftCtx 𝑖 Γ) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+    ≡ shiftCtx {⋆ = ⋆₂} (removed𝑃𝑜𝑠 v 𝑖) (subsCtx Γ v B)
+shiftSubsCtx v 𝑖 ∅ B = tr∅ (insert-remove v 𝑖)
+shiftSubsCtx v 𝑖 (Γ ⊹ A) B =
+  tr Ctx (insert-remove v 𝑖)
+    (subsCtx (shiftCtx 𝑖 Γ) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B)
+      ⊹ subsTy (shiftTy 𝑖 A) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+    ≡⟨ tr⊹ (insert-remove v 𝑖) (subsCtx (shiftCtx 𝑖 Γ) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+      (subsTy (shiftTy 𝑖 A) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B)) ⟩
+  tr Ctx (insert-remove v 𝑖) (subsCtx (shiftCtx 𝑖 Γ) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+    ⊹ tr Ty (insert-remove v 𝑖) (subsTy (shiftTy 𝑖 A) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+    ≡⟨ ap (tr Ctx (insert-remove v 𝑖) (subsCtx (shiftCtx 𝑖 Γ) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+      ⊹_) (shiftSubsTy v 𝑖 A B) ⟩
+  tr Ctx (insert-remove v 𝑖) (subsCtx (shiftCtx 𝑖 Γ) (shift𝑉𝑎𝑟 𝑖 v) (shiftPrefixTy v 𝑖 B))
+    ⊹ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy A v B)
+    ≡⟨ ap (_⊹ shiftTy (removed𝑃𝑜𝑠 v 𝑖) (subsTy A v B)) (shiftSubsCtx v 𝑖 Γ B) ⟩
+  shiftCtx (removed𝑃𝑜𝑠 v 𝑖) (subsCtx (Γ ⊹ A) v B)
+    ∎
+
+removePrefixTy : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤} (v : TyVar γ ⋆₁) (w : TyVar (remove𝑉𝑎𝑟 v) ⋆₂) →
+  Ty (prefix𝑉𝑎𝑟 v) → Ty (prefix𝑉𝑎𝑟 w) → Ty (prefix𝑉𝑎𝑟 (swapRemove𝑉𝑎𝑟 v w))
+removePrefixTy 𝑧𝑣 w A B = subsTy A w B
+removePrefixTy (𝑠𝑣 v) 𝑧𝑣 A B = A
+removePrefixTy (𝑠𝑣 v) (𝑠𝑣 w) A B = removePrefixTy v w A B
+
+reinsertPrefixTy : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤} (v : TyVar γ ⋆₁) (w : TyVar (remove𝑉𝑎𝑟 v) ⋆₂) →
+  Ty (prefix𝑉𝑎𝑟 v) → Ty (prefix𝑉𝑎𝑟 w) → Ty (prefix𝑉𝑎𝑟 (reinsert𝑉𝑎𝑟 v w))
+reinsertPrefixTy 𝑧𝑣 w A B = B
+reinsertPrefixTy (𝑠𝑣 v) 𝑧𝑣 A B = tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) B)
+reinsertPrefixTy (𝑠𝑣 v) (𝑠𝑣 w) A B = reinsertPrefixTy v w A B
+
+subsShiftVar : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤}
+  (v : TyVar γ ⋆₁) (w : TyVar (remove𝑉𝑎𝑟 v) ⋆₂) (B : Ty (prefix𝑉𝑎𝑟 v)) →
+  subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) (𝑉 w))) v B ≡ 𝑉 w
+subsShiftVar 𝑧𝑣 w B = refl
+subsShiftVar (𝑠𝑣 v) 𝑧𝑣 B = ap (λ x → subsTy x (𝑠𝑣 v) B) (tr𝑉𝑧𝑣 (insert-removal v))
+subsShiftVar {γ = γ ⊹ ⋆} {⋆₂ = ⋆₂} (𝑠𝑣 v) (𝑠𝑣 w) B =
+  subsTy (tr Ty (ap (_⊹ ⋆) (insert-removal v)) (𝑉 (𝑠𝑣 (shift𝑉𝑎𝑟 (removal𝑃𝑜𝑠 v) w)))) (𝑠𝑣 v) B
+    ≡⟨ ap (λ x → subsTy x (𝑠𝑣 v) B) (tr𝑉𝑠𝑣 (insert-removal v) (shift𝑉𝑎𝑟 (removal𝑃𝑜𝑠 v) w)) ⟩
+  shiftTy 𝑧𝑝 (subsTy (𝑉 (tr (λ γ₁ → 𝑉𝑎𝑟 γ₁ ⋆₂) (insert-removal v) (shift𝑉𝑎𝑟 (removal𝑃𝑜𝑠 v) w))) v B)
+    ≡⟨ ap (λ x → shiftTy 𝑧𝑝 (subsTy x v B))
+      (tr𝑉 (insert-removal v) (shift𝑉𝑎𝑟 (removal𝑃𝑜𝑠 v) w) ⁻¹) ⟩
+  shiftTy 𝑧𝑝 (subsTy (tr Ty (insert-removal v) (𝑉 (shift𝑉𝑎𝑟 (removal𝑃𝑜𝑠 v) w))) v B)
+    ≡⟨ ap (shiftTy 𝑧𝑝) (subsShiftVar v w B) ⟩
+  𝑉 (𝑠𝑣 w)
+    ∎
+
+subsShiftTy : {γ : TyCtx} {⋆ : ⊤} (v : TyVar γ ⋆) (A : Ty (remove𝑉𝑎𝑟 v)) (B : Ty (prefix𝑉𝑎𝑟 v)) →
+  subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) A)) v B ≡ A
+subsShiftTy v (𝑉 w) B = subsShiftVar v w B
+subsShiftTy v (A₁ ⇒ A₂) B =
+  subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) A₁ ⇒ shiftTy (removal𝑃𝑜𝑠 v) A₂)) v B
+    ≡⟨ ap (λ x → subsTy x v B)
+      (tr⇒ (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) A₁) (shiftTy (removal𝑃𝑜𝑠 v) A₂)) ⟩
+  subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) A₁)) v B
+    ⇒ subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) A₂)) v B
+    ≡⟨ ap (subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) A₁)) v B ⇒_)
+      (subsShiftTy v A₂ B) ⟩
+  subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) A₁)) v B ⇒ A₂
+    ≡⟨ ap (_⇒ A₂) (subsShiftTy v A₁ B) ⟩
+  A₁ ⇒ A₂
+    ∎
+subsShiftTy v (∀⋆ {⋆ = ⋆} A) B =
+  subsTy (tr Ty (insert-removal v) (∀⋆ (shiftTy (𝑠𝑝 (removal𝑃𝑜𝑠 v)) A))) v B
+    ≡⟨ ap (λ x → subsTy x v B) (tr∀⋆ (insert-removal v) (shiftTy (𝑠𝑝 (removal𝑃𝑜𝑠 v)) A)) ⟩
+  ∀⋆ (subsTy (tr Ty (ap (_⊹ ⋆) (insert-removal v)) (shiftTy (𝑠𝑝 (removal𝑃𝑜𝑠 v)) A)) (𝑠𝑣 v) B)
+    ≡⟨ ap ∀⋆ (subsShiftTy (𝑠𝑣 v) A B) ⟩
+  ∀⋆ A
+    ∎
+
+subsVar² : {γ : TyCtx} {⋆ ⋆₁ ⋆₂ : ⊤} (u : TyVar γ ⋆) (v : TyVar γ ⋆₁)
+  (w : TyVar (remove𝑉𝑎𝑟 v) ⋆₂) (B : Ty (prefix𝑉𝑎𝑟 v)) (C : Ty (prefix𝑉𝑎𝑟 w)) →
+  tr Ty (remove-swap v w) (subsTy (subsTy (𝑉 u) (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+    (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C))
+    ≡ subsTy (subsTy (𝑉 u) v B) w C
+subsVar² 𝑧𝑣 𝑧𝑣 w B C = refl
+subsVar² (𝑠𝑣 u) 𝑧𝑣 w B C = subsShiftTy 𝑧𝑣 (subsTyVar u w C) (subsTy B w C)
+subsVar² 𝑧𝑣 (𝑠𝑣 v) 𝑧𝑣 B C = subsShiftTy v C B
+subsVar² 𝑧𝑣 (𝑠𝑣 v) (𝑠𝑣 w) B C = tr𝑉𝑧𝑣 (remove-swap v w)
+subsVar² (𝑠𝑣 u) (𝑠𝑣 v) 𝑧𝑣 B C = subsShiftTy 𝑧𝑣 (subsTyVar u v B) C ⁻¹
+subsVar² {γ = γ ⊹ ⋆} (𝑠𝑣 u) (𝑠𝑣 v) (𝑠𝑣 w) B C =
+  tr Ty (ap (_⊹ ⋆) (remove-swap v w)) (subsTy (shiftTy 𝑧𝑝 (subs𝑉𝑎𝑟 𝑉 shiftTy u (reinsert𝑉𝑎𝑟 v w)
+    (reinsertPrefixTy v w B C))) (𝑠𝑣 (swapRemove𝑉𝑎𝑟 v w)) (removePrefixTy v w B C))
+    ≡⟨ ap (tr Ty (ap (_⊹ ⋆) (remove-swap v w))) (shiftSubsTy (swapRemove𝑉𝑎𝑟 v w) 𝑧𝑝
+      (subsTy (𝑉 u) (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C)) (removePrefixTy v w B C)) ⟩
+  tr Ty (ap (_⊹ ⋆) (remove-swap v w)) (shiftTy 𝑧𝑝 (subsTy (subsTyVar u (reinsert𝑉𝑎𝑟 v w)
+    (reinsertPrefixTy v w B C)) (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C)))
+    ≡⟨ trShiftTy (remove-swap v w) (subsTy (subsTyVar u (reinsert𝑉𝑎𝑟 v w)
+      (reinsertPrefixTy v w B C)) (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C)) ⟩
+  shiftTy 𝑧𝑝 (tr Ty (remove-swap v w) (subsTy (subsTyVar u (reinsert𝑉𝑎𝑟 v w)
+    (reinsertPrefixTy v w B C)) (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C)))
+    ≡⟨ ap (shiftTy 𝑧𝑝) (subsVar² u v w B C) ⟩
+  shiftTy 𝑧𝑝 (subsTy (subsTyVar u v B) w C)
+    ≡⟨ shiftSubsTy w 𝑧𝑝 (subsTyVar u v B) C ⁻¹ ⟩
+  subsTy (shiftTy 𝑧𝑝 (subsTyVar u v B)) (𝑠𝑣 w) C
+    ∎
+
+subsTy² : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤} (A : Ty γ) (v : TyVar γ ⋆₁) (w : TyVar (remove𝑉𝑎𝑟 v) ⋆₂)
+  (B : Ty (prefix𝑉𝑎𝑟 v)) (C : Ty (prefix𝑉𝑎𝑟 w)) →
+  tr Ty (remove-swap v w) (subsTy (subsTy A (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+    (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C))
+    ≡ subsTy (subsTy A v B) w C
+subsTy² (𝑉 u) v w B C = subsVar² u v w B C
+subsTy² (A₁ ⇒ A₂) v w B C =
+  tr Ty (remove-swap v w) (subsTy (subsTy A₁ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+    (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C)
+      ⇒ subsTy (subsTy A₂ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+        (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C))
+    ≡⟨ tr⇒ (remove-swap v w)
+      (subsTy (subsTy A₁ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+        (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C))
+      (subsTy (subsTy A₂ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+        (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C)) ⟩
+  tr Ty (remove-swap v w) (subsTy (subsTy A₁ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+    (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C))
+    ⇒ tr Ty (remove-swap v w) (subsTy (subsTy A₂ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+      (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C))
+    ≡⟨ ap (tr Ty (remove-swap v w) (subsTy (subsTy A₁ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+      (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C)) ⇒_) (subsTy² A₂ v w B C) ⟩
+  tr Ty (remove-swap v w) (subsTy (subsTy A₁ (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
+    (swapRemove𝑉𝑎𝑟 v w) (removePrefixTy v w B C)) ⇒ subsTy (subsTy A₂ v B) w C
+    ≡⟨ ap (_⇒ subsTy (subsTy A₂ v B) w C) (subsTy² A₁ v w B C) ⟩
+  subsTy (subsTy A₁ v B) w C ⇒ subsTy (subsTy A₂ v B) w C
+    ∎
+subsTy² (∀⋆ {⋆ = ⋆} A) v w B C =
+  tr Ty (remove-swap v w) (∀⋆ (subsTy (subsTy A (𝑠𝑣 (reinsert𝑉𝑎𝑟 v w))
+    (reinsertPrefixTy v w B C)) (𝑠𝑣 (swapRemove𝑉𝑎𝑟 v w)) (removePrefixTy v w B C)))
+    ≡⟨ tr∀⋆ (remove-swap v w) (subsTy (subsTy A (𝑠𝑣 (reinsert𝑉𝑎𝑟 v w))
+      (reinsertPrefixTy v w B C)) (𝑠𝑣 (swapRemove𝑉𝑎𝑟 v w)) (removePrefixTy v w B C)) ⟩
+  ∀⋆ (tr Ty (ap (_⊹ ⋆) (remove-swap v w)) (subsTy (subsTy A (𝑠𝑣 (reinsert𝑉𝑎𝑟 v w))
+    (reinsertPrefixTy v w B C)) (𝑠𝑣 (swapRemove𝑉𝑎𝑟 v w)) (removePrefixTy v w B C)))
+    ≡⟨ ap ∀⋆ (subsTy² A (𝑠𝑣 v) (𝑠𝑣 w) B C) ⟩
+  ∀⋆ (subsTy (subsTy A (𝑠𝑣 v) B) (𝑠𝑣 w) C)
     ∎
 
 shiftVar-γ : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {A : Ty γ}
@@ -198,6 +339,16 @@ shiftInsert : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {A : Ty γ} (𝑗 : TyPos �
 shiftInsert 𝑗 𝑧𝑝 = refl
 shiftInsert {Γ = Γ ⊹ A} 𝑗 (𝑠𝑝 𝑖) = ap (_⊹  shiftTy 𝑗 A) (shiftInsert 𝑗 𝑖)
 
+shiftRemove : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {A : Ty γ} (𝑖 : TyPos γ) (v : Var Γ A) →
+  shiftCtx {⋆ = ⋆} 𝑖 (remove𝑉𝑎𝑟 v) ≡ remove𝑉𝑎𝑟 (shiftVar-γ 𝑖 v)
+shiftRemove 𝑖 𝑧𝑣 = refl
+shiftRemove {Γ = Γ ⊹ A} 𝑖 (𝑠𝑣 v) = ap (_⊹ shiftTy 𝑖 A) (shiftRemove 𝑖 v)
+
+shiftPrefix : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {A : Ty γ} (𝑖 : TyPos γ) (v : Var Γ A) →
+  shiftCtx {⋆ = ⋆} 𝑖 (prefix𝑉𝑎𝑟 v) ≡ prefix𝑉𝑎𝑟 (shiftVar-γ 𝑖 v)
+shiftPrefix 𝑖 𝑧𝑣 = refl
+shiftPrefix 𝑖 (𝑠𝑣 v) = shiftPrefix 𝑖 v
+
 data Tm : {γ : TyCtx} → Ctx γ → Ty γ → Type₀ where
   V : {γ : TyCtx} {Γ : Ctx γ} {A : Ty γ} →
     Var Γ A → Tm Γ A
@@ -208,7 +359,7 @@ data Tm : {γ : TyCtx} → Ctx γ → Ty γ → Type₀ where
   LAM : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {A : Ty (γ ⊹ ⋆)} →
     Tm (shiftCtx 𝑧𝑝 Γ) A → Tm Γ (∀⋆ A)
   APP : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {A : Ty (γ ⊹ ⋆)} →
-    Tm Γ (∀⋆ A) → (B : Ty γ) → Tm Γ (subsTy 𝑧𝑣 A B)
+    Tm Γ (∀⋆ A) → (B : Ty γ) → Tm Γ (subsTy A 𝑧𝑣 B)
 
 shiftTm : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} (𝑖 : CtxPos Γ) → Tm Γ B → Tm (insert𝐶𝑡𝑥 𝑖 A) B
 shiftTm 𝑖 (V v) = V (shift𝑉𝑎𝑟 𝑖 v)
@@ -227,6 +378,36 @@ shiftTm-γ 𝑖 (LAM {Γ = Γ} {A} t) =
   LAM (tr (λ Γ → Tm Γ (shiftTy (𝑠𝑝 𝑖) A)) (shiftCtx² 𝑧𝑝 𝑖 Γ) (shiftTm-γ (𝑠𝑝 𝑖) t))
 shiftTm-γ {⋆ = ⋆₁} 𝑖 (APP {⋆ = ⋆₂}{Γ = Γ} {B} t A) =
   tr (λ A → Tm (shiftCtx 𝑖 Γ) A) (shiftSubsTy 𝑧𝑣 (𝑠𝑝 𝑖) B A) (APP (shiftTm-γ 𝑖 t) (shiftTy 𝑖 A))
+
+subsVar : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} →
+  Var Γ B → (v : Var Γ A) → Tm (prefix𝑉𝑎𝑟 v) A → Tm (remove𝑉𝑎𝑟 v) B
+subsVar = subs𝑉𝑎𝑟 V shiftTm
+
+subsTm : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} →
+  Tm Γ B → (v : Var Γ A) → Tm (prefix𝑉𝑎𝑟 v) A → Tm (remove𝑉𝑎𝑟 v) B
+subsTm (V w) v s = subsVar w v s
+subsTm (Lam t) v s = Lam (subsTm t (𝑠𝑣 v) s)
+subsTm (App t₁ t₂) v s = App (subsTm t₁ v s) (subsTm t₂ v s)
+subsTm {A = B} (LAM {A = A} t) v s =
+  LAM (tr (λ Γ → Tm Γ A) (shiftRemove 𝑧𝑝 v ⁻¹)
+    (subsTm t (shiftVar-γ 𝑧𝑝 v)
+      (tr (λ Γ → Tm Γ (shiftTy 𝑧𝑝 B)) (shiftPrefix 𝑧𝑝 v) (shiftTm-γ 𝑧𝑝 s))))
+subsTm (APP t A) v s = APP (subsTm t v s) A
+
+subsVar-γ : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {B : Ty γ} →
+  Var Γ B → (v : TyVar γ ⋆) (A : Ty (prefix𝑉𝑎𝑟 v)) → Var (subsCtx Γ v A) (subsTy B v A)
+subsVar-γ w v A = tr𝑉𝑎𝑟 (λ B → subsTy B v A) w 
+
+subsTm-γ : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {B : Ty γ} →
+  Tm Γ B → (v : TyVar γ ⋆) (A : Ty (prefix𝑉𝑎𝑟 v)) → Tm (subsCtx Γ v A) (subsTy B v A)
+subsTm-γ (V w) v A = V (subsVar-γ w v A)
+subsTm-γ (Lam t) v A = Lam (subsTm-γ t v A)
+subsTm-γ (App t s) v A = App (subsTm-γ t v A) (subsTm-γ s v A)
+subsTm-γ (LAM {Γ = Γ} {B} t) v A =
+  LAM (tr (λ Γ → Tm Γ (subsTy B (𝑠𝑣 v) A)) (shiftSubsCtx v 𝑧𝑝 Γ A) (subsTm-γ t (𝑠𝑣 v) A))
+subsTm-γ (APP {Γ = Γ} {C} t B) v A =
+  tr (λ C → Tm (subsCtx Γ v A) C) (subsTy² C 𝑧𝑣 v B A)
+   (APP (subsTm-γ t v A) (subsTy B v A))
 
 -- Some tests
 
