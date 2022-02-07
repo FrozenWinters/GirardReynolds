@@ -3,7 +3,7 @@ module P2 where
 open import lists
 open import F2
 
--- Round III
+-- Round IV
 
 PredCtx : (γ : TyCtx) → Type₀
 PredCtx = Ctx
@@ -144,7 +144,77 @@ subsTyInProp {Γ̂ = Γ̂} {Γ} (∀X 𝐴) v A =
     (tr (λ Γ → Proposition (subsCtx (shiftCtx 𝑧𝑝 Γ̂) (𝑠𝑣 v) A) Γ) (shiftSubsCtx v 𝑧𝑝 Γ A)
       (subsTyInProp 𝐴 (𝑠𝑣 v) A)))
 
--- Round IV
+-- Round V
+
+data OTm-Pred : {γ : TyCtx} (Γ̂ : PredCtx γ) (Γ : Ctx γ) (A : Ty γ) → Type₀
+
+data OTm-Prop : {γ : TyCtx} (Γ̂ : PredCtx γ) (Γ : Ctx γ) → Type₀ where
+  𝑂∈ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {A : Ty γ} → Predicate Γ̂ Γ A → OTm-Prop Γ̂ Γ
+  _∈_ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {A : Ty γ} →
+    Tm Γ A → OTm-Pred Γ̂ Γ A → OTm-Prop Γ̂ Γ
+  _⇛₁_ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} → OTm-Prop Γ̂ Γ → Proposition Γ̂ Γ → OTm-Prop Γ̂ Γ
+  _⇛₂_ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} → Proposition Γ̂ Γ → OTm-Prop Γ̂ Γ → OTm-Prop Γ̂ Γ
+  ∀𝒳 : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {Â : Ty γ} → OTm-Prop (Γ̂ ⊹ Â) Γ → OTm-Prop Γ̂ Γ
+  ∀x : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {A : Ty γ} → OTm-Prop Γ̂ (Γ ⊹ A) → OTm-Prop Γ̂ Γ
+  ∀X : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {⋆ : ⊤} →
+    OTm-Prop (shiftCtx {⋆ = ⋆} 𝑧𝑝 Γ̂) (shiftCtx 𝑧𝑝 Γ) → OTm-Prop Γ̂ Γ
+
+data OTm-Pred where
+  𝑃𝐿 : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {Â : Ty γ} →
+    OTm-Prop Γ̂ (Γ ⊹ Â) → OTm-Pred Γ̂ Γ Â
+
+OTm-Prop-γ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} → OTm-Prop Γ̂ Γ → TyCtx
+OTm-Prop-γ {γ} (𝑂∈ x) = γ
+OTm-Prop-γ (t ∈ 𝑃𝐿 env) = OTm-Prop-γ env
+OTm-Prop-γ (env ⇛₁ 𝐵) = OTm-Prop-γ env
+OTm-Prop-γ (𝐴 ⇛₂ env) = OTm-Prop-γ env
+OTm-Prop-γ (∀𝒳 env) = OTm-Prop-γ env
+OTm-Prop-γ (∀x env) = OTm-Prop-γ env
+OTm-Prop-γ (∀X env) = OTm-Prop-γ env
+
+OTm-Prop-Γ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} (env : OTm-Prop Γ̂ Γ) → Ctx (OTm-Prop-γ env)
+OTm-Prop-Γ {Γ = Γ} (𝑂∈ 𝒜) = Γ
+OTm-Prop-Γ (t ∈ 𝑃𝐿 env) = OTm-Prop-Γ env
+OTm-Prop-Γ (env ⇛₁ 𝐵) = OTm-Prop-Γ env
+OTm-Prop-Γ (𝐴 ⇛₂ env) = OTm-Prop-Γ env
+OTm-Prop-Γ (∀𝒳 env) = OTm-Prop-Γ env
+OTm-Prop-Γ (∀x env) = OTm-Prop-Γ env
+OTm-Prop-Γ (∀X env) = OTm-Prop-Γ env
+
+OTm-Prop-A : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} (env : OTm-Prop Γ̂ Γ) → Ty (OTm-Prop-γ env)
+OTm-Prop-A (𝑂∈ {A = A} 𝒜) = A
+OTm-Prop-A (t ∈ 𝑃𝐿 env) = OTm-Prop-A env
+OTm-Prop-A (env ⇛₁ 𝐵) = OTm-Prop-A env
+OTm-Prop-A (𝐴 ⇛₂ env) = OTm-Prop-A env
+OTm-Prop-A (∀𝒳 env) = OTm-Prop-A env
+OTm-Prop-A (∀x env) = OTm-Prop-A env
+OTm-Prop-A (∀X env) = OTm-Prop-A env
+
+OTm-Prop-fill : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ}
+  (env : OTm-Prop Γ̂ Γ) → Tm (OTm-Prop-Γ env) (OTm-Prop-A env) → Proposition Γ̂ Γ
+OTm-Prop-fill (𝑂∈ 𝒜) t = t ∈ 𝒜
+OTm-Prop-fill (s ∈ 𝑃𝐿 env) t = s ∈ 𝑃𝐿 (OTm-Prop-fill env t)
+OTm-Prop-fill (env ⇛₁ 𝐵) t = OTm-Prop-fill env t ⇛ 𝐵
+OTm-Prop-fill (𝐴 ⇛₂ env) t = 𝐴 ⇛ OTm-Prop-fill env t
+OTm-Prop-fill (∀𝒳 env) t = ∀𝒳 (OTm-Prop-fill env t)
+OTm-Prop-fill (∀x env) t = ∀x (OTm-Prop-fill env t)
+OTm-Prop-fill (∀X env) t = ∀X (OTm-Prop-fill env t)
+
+data RuleProp : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} (𝐴 𝐵 : Proposition Γ̂ Γ) → Type₀ where
+  β₃ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {A : Ty γ}
+    (t : Tm Γ A) (𝐴 : Proposition Γ̂ (Γ ⊹ A)) → RuleProp (t ∈ (𝑃𝐿 𝐴)) (subsTmInProp 𝐴 𝑧𝑣 t)
+
+data Step : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} (𝐴 𝐵 : Proposition Γ̂ Γ) → Type₀ where
+  ⟨_⊚_⊚_⟩ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} (env₁ : OTm-Prop Γ̂ Γ)
+    (env₂ : OTm (OTm-Prop-Γ env₁) (OTm-Prop-A env₁)) {t s : Tm (OTm-Γ env₂) (OTm-A env₂)} →
+    RuleTm t s →
+      Step (OTm-Prop-fill env₁ (OTm-fill env₂ t)) (OTm-Prop-fill env₁ (OTm-fill env₂ s))
+  ⟨_⊚_⊚_⟩⁻¹ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} (env₁ : OTm-Prop Γ̂ Γ)
+    (env₂ : OTm (OTm-Prop-Γ env₁) (OTm-Prop-A env₁)) {t s : Tm (OTm-Γ env₂) (OTm-A env₂)} →
+    RuleTm t s →
+      Step (OTm-Prop-fill env₁ (OTm-fill env₂ s)) (OTm-Prop-fill env₁ (OTm-fill env₂ t))
+
+-- Round VI
 
 PropCtx : {γ : TyCtx} → PredCtx γ → Ctx γ → Type₀
 PropCtx Γ̂ Γ = 𝐶𝑡𝑥 (Proposition Γ̂ Γ)
@@ -167,22 +237,6 @@ shiftPropCtx-n : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {⋆ : ⊤}
   (𝑖 : TyPos γ) → PropCtx Γ̂ Γ → PropCtx (shiftCtx {⋆ = ⋆} 𝑖 Γ̂) (shiftCtx 𝑖 Γ)
 shiftPropCtx-n 𝑖 = map𝐶𝑡𝑥 (shiftProp-n 𝑖)
 
-subsShiftCtx : {γ : TyCtx} {⋆ : ⊤} (v : TyVar γ ⋆) (Γ : Ctx (remove𝑉𝑎𝑟 v)) (A : Ty (prefix𝑉𝑎𝑟 v)) →
-  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ≡ Γ
-subsShiftCtx v ∅ A = ap (λ x → subsCtx x v A) (tr∅ (insert-removal v))
-subsShiftCtx v (Γ ⊹ B) A =
-  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) (Γ ⊹ B))) v A
-    ≡⟨ ap (λ x → subsCtx x v A) (tr⊹ (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)
-      (shiftTy (removal𝑃𝑜𝑠 v) B)) ⟩
-  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A
-    ⊹ subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) B)) v A
-    ≡⟨ ap (subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ⊹_)
-      (subsShiftTy v B A) ⟩
-  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ⊹ B
-    ≡⟨ ap (_⊹ B) (subsShiftCtx v Γ A) ⟩
-  Γ ⊹ B
-    ∎
-
 data Deduction : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} →
                  PropCtx Γ̂ Γ → Proposition Γ̂ Γ → Type₀ where
   𝐷𝑉 : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {𝐴 : Proposition Γ̂ Γ} →
@@ -191,7 +245,7 @@ data Deduction : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} →
     Deduction (α ⊹ 𝐴) 𝐵 → Deduction α (𝐴 ⇛ 𝐵)
   →ₑ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {𝐴 𝐵 : Proposition Γ̂ Γ} →
     Deduction α (𝐴 ⇛ 𝐵) → Deduction α 𝐴 → Deduction α 𝐵
-  ∀⁰ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ}{Â : Ty γ}
+  ∀⁰ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {Â : Ty γ}
     {𝐴 : Proposition Γ̂ Γ} →
     Deduction (shiftPropCtx-Γ̂ {Â = Â} 𝑧𝑝 α) (shiftProp-Γ̂ 𝑧𝑝 𝐴) → Deduction α 𝐴
   ∀¹ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {A : Ty γ}
@@ -212,3 +266,5 @@ data Deduction : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} →
       (tr (λ Γ̂ → Proposition Γ̂ Γ) (subsShiftCtx 𝑧𝑣 Γ̂ A)
         (tr (λ Γ → Proposition (subsCtx (shiftCtx 𝑧𝑝 Γ̂) 𝑧𝑣 A) Γ) (subsShiftCtx 𝑧𝑣 Γ A)
           (subsTyInProp 𝐴 𝑧𝑣 A)))
+  β : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {𝐴 𝐵 : Proposition Γ̂ Γ} →
+    Deduction α 𝐴 → Step 𝐴 𝐵 → Deduction α 𝐵

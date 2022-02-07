@@ -261,6 +261,22 @@ subsShiftTy v (∀⋆ {⋆ = ⋆} A) B =
   ∀⋆ A
     ∎
 
+subsShiftCtx : {γ : TyCtx} {⋆ : ⊤} (v : TyVar γ ⋆) (Γ : Ctx (remove𝑉𝑎𝑟 v)) (A : Ty (prefix𝑉𝑎𝑟 v)) →
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ≡ Γ
+subsShiftCtx v ∅ A = ap (λ x → subsCtx x v A) (tr∅ (insert-removal v))
+subsShiftCtx v (Γ ⊹ B) A =
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) (Γ ⊹ B))) v A
+    ≡⟨ ap (λ x → subsCtx x v A) (tr⊹ (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)
+      (shiftTy (removal𝑃𝑜𝑠 v) B)) ⟩
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A
+    ⊹ subsTy (tr Ty (insert-removal v) (shiftTy (removal𝑃𝑜𝑠 v) B)) v A
+    ≡⟨ ap (subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ⊹_)
+      (subsShiftTy v B A) ⟩
+  subsCtx (tr Ctx (insert-removal v) (shiftCtx (removal𝑃𝑜𝑠 v) Γ)) v A ⊹ B
+    ≡⟨ ap (_⊹ B) (subsShiftCtx v Γ A) ⟩
+  Γ ⊹ B
+    ∎
+
 subsVar² : {γ : TyCtx} {⋆ ⋆₁ ⋆₂ : ⊤} (u : TyVar γ ⋆) (v : TyVar γ ⋆₁)
   (w : TyVar (remove𝑉𝑎𝑟 v) ⋆₂) (B : Ty (prefix𝑉𝑎𝑟 v)) (C : Ty (prefix𝑉𝑎𝑟 w)) →
   tr Ty (remove-swap v w) (subsTy (subsTy (𝑉 u) (reinsert𝑉𝑎𝑟 v w) (reinsertPrefixTy v w B C))
@@ -408,6 +424,147 @@ subsTm-γ (LAM {Γ = Γ} {B} t) v A =
 subsTm-γ (APP {Γ = Γ} {C} t B) v A =
   tr (λ C → Tm (subsCtx Γ v A) C) (subsTy² C 𝑧𝑣 v B A)
    (APP (subsTm-γ t v A) (subsTy B v A))
+
+-- Round III
+
+η-helperVar : {γ : TyCtx} {⋆₁ ⋆₂ : ⊤} (δ : TyCtx) (v : TyVar ((γ ⊹ ⋆₁) ⊹⊹ δ) ⋆₂) →
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTyVar (tr (λ γ₁ → TyVar γ₁ ⋆₂) (insert++ (𝑠𝑝 𝑧𝑝) δ)
+    (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)) (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))) ≡ 𝑉 v
+η-helperVar ∅ 𝑧𝑣 = refl
+η-helperVar ∅ (𝑠𝑣 v) = refl
+η-helperVar (δ ⊹ ⋆) 𝑧𝑣 =
+  tr Ty (remove++ 𝑧𝑣 (δ ⊹ ⋆)) (subsTyVar (tr (λ γ₁ → TyVar γ₁ ⋆)
+    (ap (_⊹ ⋆) (insert++ (𝑠𝑝 𝑧𝑝) δ)) 𝑧𝑣) (𝑠𝑣 (𝑧𝑣 ++𝑉𝑎𝑟 δ)) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ ap (λ x → tr Ty (remove++ 𝑧𝑣 (δ ⊹ ⋆)) (subsTyVar x (𝑠𝑣 (𝑧𝑣 ++𝑉𝑎𝑟 δ))
+      (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))) (tr𝑧𝑣 (insert++ (𝑠𝑝 𝑧𝑝) δ)) ⟩
+  tr Ty (ap (_⊹ ⋆) (remove++ 𝑧𝑣 δ)) (𝑉 𝑧𝑣)
+    ≡⟨ tr𝑉𝑧𝑣 (remove++ 𝑧𝑣 δ) ⟩
+  𝑉 𝑧𝑣
+    ∎
+η-helperVar (δ ⊹ ⋆) (𝑠𝑣 v) =
+  tr Ty (remove++ 𝑧𝑣 (δ ⊹ ⋆)) (subsTyVar (tr (λ γ₁ → TyVar γ₁ _) (ap (_⊹ ⋆) (insert++ (𝑠𝑝 𝑧𝑝) δ))
+    (𝑠𝑣 (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v))) (𝑠𝑣 (𝑧𝑣 ++𝑉𝑎𝑟 δ)) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ ap (λ x → tr Ty (remove++ 𝑧𝑣 (δ ⊹ ⋆)) (subsTyVar x (𝑠𝑣 (𝑧𝑣 ++𝑉𝑎𝑟 δ))
+      (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))) (tr𝑠𝑣 (insert++ (𝑠𝑝 𝑧𝑝) δ) (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)) ⟩
+  tr Ty (ap (_⊹ ⋆) (remove++ 𝑧𝑣 δ)) (shiftTy 𝑧𝑝 (subsTyVar (tr (λ Σ → 𝑉𝑎𝑟 Σ _) (insert++ (𝑠𝑝 𝑧𝑝) δ)
+    (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)) (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))))
+    ≡⟨ trShiftTy (remove++ 𝑧𝑣 δ) (subsTyVar (tr (λ Σ → 𝑉𝑎𝑟 Σ _) (insert++ (𝑠𝑝 𝑧𝑝) δ)
+      (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)) (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))) ⟩
+  shiftTy 𝑧𝑝 (tr Ty (remove++ 𝑧𝑣 δ) (subsTyVar (tr (λ Σ → 𝑉𝑎𝑟 Σ _) (insert++ (𝑠𝑝 𝑧𝑝) δ)
+    (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)) (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))))
+    ≡⟨ ap (shiftTy 𝑧𝑝) (η-helperVar δ v) ⟩
+  𝑉 (𝑠𝑣 v)
+    ∎
+
+η-helper : {γ : TyCtx} {⋆ : ⊤} (δ : TyCtx) (A : Ty ((γ ⊹ ⋆) ⊹⊹ δ)) →
+  tr Ty (remove++ 𝑧𝑣 δ)
+    (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy {⋆ = ⋆} (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) A)) (𝑧𝑣 ++𝑉𝑎𝑟 δ)
+      (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))) ≡ A
+η-helper δ (𝑉 v) =
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (𝑉 (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)))
+    (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ ap (λ x → tr Ty (remove++ 𝑧𝑣 δ) (subsTy x (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))))
+      (tr𝑉 (insert++ (𝑠𝑝 𝑧𝑝) δ) (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)) ⟩
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTyVar (tr (λ γ₁ → TyVar γ₁ _) (insert++ (𝑠𝑝 𝑧𝑝) δ)
+    (shift𝑉𝑎𝑟 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) v)) (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ η-helperVar δ v ⟩
+  𝑉 v
+    ∎
+η-helper δ (A ⇒ B) =
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) A
+    ⇒
+  shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) B)) (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ ap (λ x → tr Ty (remove++ 𝑧𝑣 δ) (subsTy x (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))))
+      (tr⇒ (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) A) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) B)) ⟩
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) A))
+    (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))
+    ⇒
+  subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) B))
+    (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ tr⇒ (remove++ 𝑧𝑣 δ)
+      (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) A))
+        (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+      (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) B))
+        (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))) ⟩
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) A))
+    (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ⇒
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ) B))
+    (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ ap₂ _⇒_ (η-helper δ A) (η-helper δ B) ⟩
+  A ⇒ B
+    ∎
+η-helper δ (∀⋆ {⋆ = ⋆} A) =
+  tr Ty (remove++ 𝑧𝑣 δ) (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) δ) (∀⋆ (shiftTy (𝑠𝑝 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ)) A)))
+    (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣)))
+    ≡⟨ ap (λ x → tr Ty (remove++ 𝑧𝑣 δ) (subsTy x (𝑧𝑣 ++𝑉𝑎𝑟 δ) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))))
+      (tr∀⋆ (insert++ (𝑠𝑝 𝑧𝑝) δ) (shiftTy (𝑠𝑝 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ)) A)) ⟩
+  tr Ty (remove++ 𝑧𝑣 δ) (∀⋆ (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) (δ ⊹ ⋆ ))
+    (shiftTy (𝑠𝑝 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ)) A)) (𝑠𝑣 (𝑧𝑣 ++𝑉𝑎𝑟 δ)) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))))
+    ≡⟨ tr∀⋆ (remove++ 𝑧𝑣 δ) (subsTy (tr Ty (insert++ (𝑠𝑝 𝑧𝑝) (δ ⊹ ⋆ ))
+      (shiftTy (𝑠𝑝 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ)) A)) (𝑠𝑣 (𝑧𝑣 ++𝑉𝑎𝑟 δ)) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))) ⟩
+  ∀⋆ (tr Ty (remove++ 𝑧𝑣 (δ ⊹ ⋆)) (subsTy (tr Ty  (insert++ (𝑠𝑝 𝑧𝑝) (δ ⊹ ⋆))
+    (shiftTy (𝑠𝑝 (𝑠𝑝 𝑧𝑝 ++𝑃𝑜𝑠 δ)) A)) (𝑠𝑣 (𝑧𝑣 ++𝑉𝑎𝑟 δ)) (tr Ty (prefix++ 𝑧𝑣 δ ⁻¹) (𝑉 𝑧𝑣))))
+    ≡⟨ ap ∀⋆ (η-helper (δ ⊹ ⋆) A) ⟩
+  ∀⋆ A
+    ∎
+
+data RuleTm : {γ : TyCtx} {Γ : Ctx γ} {A : Ty γ} (t s : Tm Γ A) → Type₀ where
+  β₁ : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} (t : Tm (Γ ⊹ A) B) (s : Tm Γ A) →
+    RuleTm (App (Lam t) s) (subsTm t 𝑧𝑣 s)
+  β₂ : {γ : TyCtx} {Γ : Ctx γ} {⋆ : ⊤} {A : Ty γ}
+    (t : Tm (shiftCtx {⋆ = ⋆} 𝑧𝑝 Γ) (shiftTy 𝑧𝑝 A)) (B : Ty γ) →
+    RuleTm (APP (LAM t) B)
+      (tr (λ Γ → Tm Γ (subsTy (shiftTy 𝑧𝑝 A) 𝑧𝑣 B)) (subsShiftCtx 𝑧𝑣 Γ B) (subsTm-γ t 𝑧𝑣 B))
+  η₁ : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} (t : Tm Γ (A ⇒ B)) →
+    RuleTm t (Lam (App (shiftTm 𝑧𝑝 t) (V 𝑧𝑣)))
+  η₂ : {γ : TyCtx} {⋆ : ⊤} {Γ : Ctx γ} {A : Ty (γ ⊹ ⋆)} (t : Tm Γ (∀⋆ A)) →
+    RuleTm t (tr (λ A → Tm Γ A) (ap ∀⋆ (η-helper ∅ A)) (LAM (APP (shiftTm-γ 𝑧𝑝 t) (𝑉 𝑧𝑣))))
+
+data OTm : {γ : TyCtx} (Γ : Ctx γ) (A : Ty γ) → Type₀ where
+ 𝑂 : {γ : TyCtx} {Γ : Ctx γ} {A : Ty γ} → OTm Γ A
+ 𝐿 : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} → OTm (Γ ⊹ A) B → OTm Γ (A ⇒ B)
+ 𝐴₁ : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} →
+   OTm Γ (A ⇒ B) → Tm Γ A → OTm Γ B
+ 𝐴₂ : {γ : TyCtx} {Γ : Ctx γ} {A B : Ty γ} →
+   Tm Γ (A ⇒ B) → OTm Γ A → OTm Γ B
+ 𝑇𝐿 : {γ : TyCtx} {Γ : Ctx γ} {⋆ : ⊤} {A : Ty (γ ⊹ ⋆)} →
+   OTm (shiftCtx 𝑧𝑝 Γ) A → OTm Γ (∀⋆ A)
+ 𝑇𝐴 : {γ : TyCtx} {Γ : Ctx γ} {⋆ : ⊤} {A : Ty (γ ⊹ ⋆)} →
+   OTm Γ (∀⋆ A) → (B : Ty γ) → OTm Γ (subsTy A 𝑧𝑣 B)
+
+OTm-γ : {γ : TyCtx} {Γ : Ctx γ} {A : Ty γ} → OTm Γ A → TyCtx
+OTm-γ {γ} 𝑂 = γ
+OTm-γ (𝐿 env) = OTm-γ env
+OTm-γ (𝐴₁ env s) = OTm-γ env
+OTm-γ (𝐴₂ t env) = OTm-γ env
+OTm-γ (𝑇𝐿 env) = OTm-γ env
+OTm-γ (𝑇𝐴 env B) = OTm-γ env
+
+OTm-Γ : {γ : TyCtx} {Γ : Ctx γ} {A : Ty γ} (env : OTm Γ A) → Ctx (OTm-γ env)
+OTm-Γ {Γ = Γ} 𝑂 = Γ
+OTm-Γ (𝐿 env) = OTm-Γ env
+OTm-Γ (𝐴₁ env x) = OTm-Γ env
+OTm-Γ (𝐴₂ x env) = OTm-Γ env
+OTm-Γ (𝑇𝐿 env) = OTm-Γ env
+OTm-Γ (𝑇𝐴 env B) = OTm-Γ env
+
+OTm-A : {γ : TyCtx} {Γ : Ctx γ} {A : Ty γ} (env : OTm Γ A) → Ty (OTm-γ env)
+OTm-A {A = A} 𝑂 = A
+OTm-A (𝐿 env) = OTm-A env
+OTm-A (𝐴₁ env x) = OTm-A env
+OTm-A (𝐴₂ x env) = OTm-A env
+OTm-A (𝑇𝐿 env) = OTm-A env
+OTm-A (𝑇𝐴 env B) = OTm-A env
+
+OTm-fill : {γ : TyCtx} {Γ : Ctx γ} {A : Ty γ}
+  (env : OTm Γ A) → Tm (OTm-Γ env) (OTm-A env) → Tm Γ A
+OTm-fill 𝑂 t = t
+OTm-fill (𝐿 env) t = Lam (OTm-fill env t)
+OTm-fill (𝐴₁ env s) t = App (OTm-fill env t) s
+OTm-fill (𝐴₂ t env) s = App t (OTm-fill env s)
+OTm-fill (𝑇𝐿 env) t = LAM (OTm-fill env t)
+OTm-fill (𝑇𝐴 env B) t = APP (OTm-fill env t) B
 
 -- Some tests
 
