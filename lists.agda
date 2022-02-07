@@ -2,7 +2,8 @@ module lists where
 
 open import Agda.Primitive using (Level; lzero; lsuc; _⊔_) public
 open import Relation.Binary.PropositionalEquality
-  renaming (cong to ap ; sym to _⁻¹ ; trans to _∙_ ; subst to tr) hiding ([_]) public
+  renaming (cong to ap ; sym to infix 30 _⁻¹ ; trans to infixl 20 _∙_ ; subst to tr)
+  hiding ([_]) public
 open ≡-Reasoning public
 open import Function public
 
@@ -16,9 +17,17 @@ private
   variable
     ℓ ℓ₁ ℓ₂ ℓ₃ : Level
 
-ap₂ : {A : Type ℓ₁} {B : Type ℓ₁} {C : Type ℓ₁} {x₁ x₂ : A} {y₁ y₂ : B}
+ap₂ : {A : Type ℓ₁} {B : Type ℓ₂} {C : Type ℓ₃} {x₁ x₂ : A} {y₁ y₂ : B}
   (f : A → B → C) → x₁ ≡ x₂ → y₁ ≡ y₂ → f x₁ y₁ ≡ f x₂ y₂
 ap₂ f refl refl = refl
+
+tr₂ : {A : Type ℓ₁} {B : Type ℓ₂} (P : A → B → Type ℓ₃) {x₁ x₂ : A} {y₁ y₂ : B}
+  (p : x₁ ≡ x₂) (q : y₁ ≡ y₂) → P x₁ y₁ → P x₂ y₂
+tr₂ P refl refl x = x
+
+ap⁻¹ : {A : Type ℓ₁} {B : Type ℓ₂} (f : A → B) {x y : A} (p : x ≡ y) →
+  ap f p ⁻¹ ≡ ap f (p ⁻¹)
+ap⁻¹ f refl = refl
 
 infixl 20 _⊹_
 data 𝐶𝑡𝑥 (ty : Type ℓ) : Type ℓ where
@@ -28,6 +37,11 @@ data 𝐶𝑡𝑥 (ty : Type ℓ) : Type ℓ where
 map𝐶𝑡𝑥 : {ty₁ : Type ℓ₁} {ty₂ : Type ℓ₂} (f : ty₁ → ty₂) (Γ : 𝐶𝑡𝑥 ty₁) → 𝐶𝑡𝑥 ty₂
 map𝐶𝑡𝑥 f ∅ = ∅
 map𝐶𝑡𝑥 f (Γ ⊹ A) = map𝐶𝑡𝑥 f Γ ⊹ f A
+
+map𝐶𝑡𝑥² : {ty₁ : Type ℓ₁} {ty₂ : Type ℓ₂} {ty₃ : Type ℓ₃}
+  (g : ty₂ → ty₃) (f : ty₁ → ty₂) (Γ : 𝐶𝑡𝑥 ty₁) → map𝐶𝑡𝑥 g (map𝐶𝑡𝑥 f Γ) ≡ map𝐶𝑡𝑥 (g ∘ f) Γ
+map𝐶𝑡𝑥² g f ∅ = refl
+map𝐶𝑡𝑥² g f (Γ ⊹ A) = ap (_⊹ g (f A)) (map𝐶𝑡𝑥² g f Γ)
 
 _⊹⊹_ : {ty : Type ℓ} (Γ Δ : 𝐶𝑡𝑥 ty) → 𝐶𝑡𝑥 ty
 Γ ⊹⊹ ∅ = Γ
@@ -83,7 +97,7 @@ module _ {ty : Type ℓ} where
   insert𝐶𝑡𝑥 {Γ = Γ} 𝑧𝑝 A = Γ ⊹ A
   insert𝐶𝑡𝑥 {Γ = Γ ⊹ B} (𝑠𝑝 p) A = insert𝐶𝑡𝑥 p A ⊹ B
 
-  apInsert𝐶𝑡𝑥 : {γ δ : 𝐶𝑡𝑥 ty} {⋆ : ty} (p : γ ≡ δ) (𝑖 : 𝑃𝑜𝑠 γ) →
+  apInsert𝐶𝑡𝑥 : {Γ Δ : 𝐶𝑡𝑥 ty} {⋆ : ty} (p : Γ ≡ Δ) (𝑖 : 𝑃𝑜𝑠 Γ) →
     insert𝐶𝑡𝑥 𝑖 ⋆ ≡ insert𝐶𝑡𝑥 (tr 𝑃𝑜𝑠 p 𝑖) ⋆
   apInsert𝐶𝑡𝑥 refl 𝑖 = refl
 
@@ -105,12 +119,6 @@ module _ {ty : Type ℓ} where
     remove𝑉𝑎𝑟 (v ++𝑉𝑎𝑟 Δ) ≡ remove𝑉𝑎𝑟 v ⊹⊹ Δ
   remove++ v ∅ = refl
   remove++ v (Δ ⊹ A) = ap (_⊹ A) (remove++ v Δ)
-
-  {-prior𝑃𝑜𝑠 : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) → 𝑃𝑜𝑠 Γ
-  prior𝑃𝑜𝑠 v = {!v!}-}
-  {-subsequent𝑃𝑜𝑠 : {Γ : 𝐶𝑡𝑥 ty} {A : ty} (v : 𝑉𝑎𝑟 Γ A) → 𝑃𝑜𝑠 Γ
-  subsequent𝑃𝑜𝑠 𝑧𝑣 = 𝑠𝑝 𝑧𝑝
-  subsequent𝑃𝑜𝑠 (𝑠𝑣 v) = 𝑠𝑝 (subsequent𝑃𝑜𝑠 v)-}
 
   shift𝑉𝑎𝑟 : {Γ : 𝐶𝑡𝑥 ty} {B : ty} (𝑖 : 𝑃𝑜𝑠 Γ) (v : 𝑉𝑎𝑟 Γ B) {A : ty} → 𝑉𝑎𝑟 (insert𝐶𝑡𝑥 𝑖 A) B
   shift𝑉𝑎𝑟 𝑧𝑝 v = 𝑠𝑣 v
@@ -204,3 +212,44 @@ tr𝑃𝑜𝑠 : {ty₁ : Type ℓ₁} {ty₂ : Type ℓ₂} (f : ty₁ → ty�
   → 𝑃𝑜𝑠 Γ → 𝑃𝑜𝑠 (map𝐶𝑡𝑥 f Γ)
 tr𝑃𝑜𝑠 f 𝑧𝑝 = 𝑧𝑝
 tr𝑃𝑜𝑠 f (𝑠𝑝 p) = 𝑠𝑝 (tr𝑃𝑜𝑠 f p)
+
+trInsert𝐶𝑡𝑥 : {ty₁ : Type ℓ₁} {ty₂ : Type ℓ₂} {Γ : 𝐶𝑡𝑥 ty₁} {A : ty₁} (f : ty₁ → ty₂) (𝑖 : 𝑃𝑜𝑠 Γ) →
+  map𝐶𝑡𝑥 f (insert𝐶𝑡𝑥 𝑖 A) ≡ insert𝐶𝑡𝑥 (tr𝑃𝑜𝑠 f 𝑖) (f A)
+trInsert𝐶𝑡𝑥 f 𝑧𝑝 = refl
+trInsert𝐶𝑡𝑥 {Γ = Γ ⊹ A} f (𝑠𝑝 𝑖) = ap (_⊹ f A) (trInsert𝐶𝑡𝑥 f 𝑖)
+
+{-infixl 20 _⊕_
+data 𝑇𝑚𝑠 {ty : Type ℓ₁} (tm : 𝐶𝑡𝑥 ty → ty → Type ℓ₂)
+     : (Γ Δ : 𝐶𝑡𝑥 ty) → Type (ℓ₁ ⊔ ℓ₂) where
+  ! : {Γ : 𝐶𝑡𝑥 ty} → 𝑇𝑚𝑠 tm Γ ∅
+  _⊕_ : {Γ Δ : 𝐶𝑡𝑥 ty} {A : ty} → 𝑇𝑚𝑠 tm Γ Δ → tm Γ A → 𝑇𝑚𝑠 tm Γ (Δ ⊹ A)
+
+map𝑇𝑚𝑠 : {ty : Type ℓ₁} {Γ₁ Γ₂ Δ : 𝐶𝑡𝑥 ty} {tm₁ : 𝐶𝑡𝑥 ty → ty → Type ℓ₂}
+  {tm₂ : 𝐶𝑡𝑥 ty → ty → Type ℓ₃} (f : {A : ty} → tm₁ Γ₁ A → tm₂ Γ₂ A)
+  (σ : 𝑇𝑚𝑠 tm₁ Γ₁ Δ) → 𝑇𝑚𝑠 tm₂ Γ₂ Δ
+map𝑇𝑚𝑠 f ! = !
+map𝑇𝑚𝑠 f (σ ⊕ t) = map𝑇𝑚𝑠 f σ ⊕ f t
+
+𝑅𝑒𝑛 : (ty : Type ℓ) → 𝐶𝑡𝑥 ty → 𝐶𝑡𝑥 ty → Type ℓ
+𝑅𝑒𝑛 ty = 𝑇𝑚𝑠 (𝑉𝑎𝑟 {ty = ty})
+
+module _ {ty : Type ℓ} where
+  private
+    ctx = 𝐶𝑡𝑥 ty
+    ren = 𝑅𝑒𝑛 ty
+    var = 𝑉𝑎𝑟 {ty = ty}
+  
+  W₁𝑅𝑒𝑛 : {Γ Δ : ctx} (A : ty) → ren Γ Δ → ren (Γ ⊹ A) Δ
+  W₁𝑅𝑒𝑛 A = map𝑇𝑚𝑠 𝑠𝑣
+
+  W₂𝑅𝑒𝑛 : {Γ Δ : ctx} (A : ty) → ren Γ Δ → ren (Γ ⊹ A) (Δ ⊹ A)
+  W₂𝑅𝑒𝑛 A σ = W₁𝑅𝑒𝑛 A σ ⊕ 𝑧𝑣
+
+  id𝑅𝑒𝑛 : (Γ : ctx) → ren Γ Γ
+  id𝑅𝑒𝑛 ∅ = !
+  id𝑅𝑒𝑛 (Γ ⊹ A) = W₂𝑅𝑒𝑛 A (id𝑅𝑒𝑛 Γ)
+
+map𝑇𝑚𝑠𝐶𝑡𝑥 : {ty₁ : Type ℓ₁} {ty₂ : Type ℓ₂} {Γ Δ : 𝐶𝑡𝑥 ty₁} {tm : 𝐶𝑡𝑥 ty₁ → ty₁ → Type ℓ₃}
+  (f : {A : ty₁} → tm Γ A → ty₂) → 𝑇𝑚𝑠 tm Γ Δ → 𝐶𝑡𝑥 ty₂
+map𝑇𝑚𝑠𝐶𝑡𝑥 f ! = ∅
+map𝑇𝑚𝑠𝐶𝑡𝑥 f (σ ⊕ t) = map𝑇𝑚𝑠𝐶𝑡𝑥 f σ ⊹ f t-}

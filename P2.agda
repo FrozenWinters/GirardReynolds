@@ -246,13 +246,14 @@ data Deduction : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} →
   →ₑ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {𝐴 𝐵 : Proposition Γ̂ Γ} →
     Deduction α (𝐴 ⇛ 𝐵) → Deduction α 𝐴 → Deduction α 𝐵
   ∀⁰ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {Â : Ty γ}
-    {𝐴 : Proposition Γ̂ Γ} →
-    Deduction (shiftPropCtx-Γ̂ {Â = Â} 𝑧𝑝 α) (shiftProp-Γ̂ 𝑧𝑝 𝐴) → Deduction α 𝐴
+    {𝐴 : Proposition (Γ̂ ⊹ Â) Γ} →
+    Deduction (shiftPropCtx-Γ̂ {Â = Â} 𝑧𝑝 α) 𝐴 → Deduction α (∀𝒳 𝐴)
   ∀¹ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {A : Ty γ}
-    {𝐴 : Proposition Γ̂ Γ} →
-    Deduction (shiftPropCtx-Γ {A = A} 𝑧𝑝 α) (shiftProp-Γ 𝑧𝑝 𝐴) → Deduction α 𝐴
-  ∀²ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {⋆ : ⊤} {𝐴 : Proposition Γ̂ Γ} →
-    Deduction (shiftPropCtx-n {⋆ = ⋆} 𝑧𝑝 α) (shiftProp-n 𝑧𝑝 𝐴) → Deduction α 𝐴
+    {𝐴 : Proposition Γ̂ (Γ ⊹ A)} →
+    Deduction (shiftPropCtx-Γ {A = A} 𝑧𝑝 α) 𝐴 → Deduction α (∀x 𝐴)
+  ∀²ᵢ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {⋆ : ⊤}
+    {𝐴 : Proposition (shiftCtx {⋆ = ⋆} 𝑧𝑝 Γ̂) (shiftCtx 𝑧𝑝 Γ)} →
+    Deduction (shiftPropCtx-n {⋆ = ⋆} 𝑧𝑝 α) 𝐴 → Deduction α (∀X 𝐴)
   ∀⁰ₑ : {γ : TyCtx} {Γ̂ : PredCtx γ} {Γ : Ctx γ} {α : PropCtx Γ̂ Γ} {Â : Ty γ}
     {𝐴 : Proposition (Γ̂ ⊹ Â) Γ} →
     Deduction α (∀𝒳 𝐴) → (𝒜 : Predicate Γ̂ Γ Â) → Deduction α (subsPredInProp 𝐴 𝑧𝑣 𝒜)
